@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+            margin-top: 50px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #007bff;
+        }
+
+        p {
+            color: #555;
+        }
+
+        .button {
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        .button:hover {
+            background-color: #0056b3;
+        }
+        #evaluationResults {
+            margin-top: 20px;
+            text-align: left;
+            white-space: pre-wrap;
+        }
+        .download-button {
+            background-color: #28a745;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+
+        .download-button:hover {
+            background-color: #218838;
+        }
+    </style>
+    <title>Model Access Page</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Trained Model Access Page</h1>
+        
+        <script>
+            // JavaScript code to retrieve experiment ID from the URL
+            const queryString = window.location.search;
+            const urlParams = new URLSearchParams(queryString);
+            const expId = urlParams.get('exp_id');
+
+            // Display experiment ID or handle accordingly
+            if (expId) {
+                document.write(`<p>You are accessing the trained model for Experiment ID: ${expId}</p>`);
+                // Add logic to display or link to the trained model
+            } else {
+                document.write('<p>No Experiment ID specified.</p>');
+            }
+        </script>
+        
+        <!-- Button to view test set evaluation -->
+        <button class="button" onclick="viewTestSetEvaluation()">View Test Set Evaluation</button>
+        <button class="download-button" onclick="downloadModel()">Download Model</button>
+        <div id="evaluationResults"></div>
+        <script>
+            // Function to handle button click for test set evaluation
+            function viewTestSetEvaluation() {
+                // Replace the URL with your actual API endpoint for evaluation
+
+                // Make an AJAX request to the API
+                const expId = urlParams.get('exp_id');
+                const resultsElement = document.getElementById('evaluationResults');
+                fetch('/evaluate?' + new URLSearchParams({exp_id: expId}), {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    // Display the evaluation results in the specified element
+                    resultsElement.innerHTML = '<p><strong>Test Set Evaluation Results:</strong></p>' +
+                        '<pre>' + JSON.stringify(data.result, null, 2) +'% accuracy on test set' + '</pre>';
+                    console.log(data)
+                    if (data.params != null) {
+                        resultsElement.innerHTML += '<p><strong>Best params:</strong></p>' + '<pre> lr: ' + data.params[0] + ', batch size: ' + data.params[1] + ', epoch: ' + data.params[2] + '</pre>'
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching evaluation results:', error);
+                    resultsElement.innerHTML = '<p>Error fetching evaluation results. Please try again.</p>';
+                }); 
+            }
+            function downloadModel() {
+                // Replace the URL with your actual API endpoint for model download
+                const expId = urlParams.get('exp_id');
+                const downloadUrl = '/download_model?' + new URLSearchParams({ exp_id: expId });
+
+                // Create a temporary link element and trigger the download
+                const link = document.createElement('a');
+                link.href = downloadUrl;
+                link.download = `models/model_${expId}.onnx`;
+                
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        </script>
+        
+    </div>
+</body>
+</html>

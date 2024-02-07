@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            margin-top: 50px;
+        }
+
+        h1 {
+            color: #007bff;
+        }
+
+        h2 {
+            color: #007bff;
+            margin-top: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #progressContainer {
+            margin-top: 20px;
+        }
+
+        .progress-bar-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .progress-bar {
+            display: flex;
+            align-items: center;
+            width: 50%; /* Adjusted width */
+            height: 15px;
+            background-color: #007bff;
+            border-radius: 4px;
+            transition: width 0.3s;
+            margin-bottom: 10px;
+            min-width: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .progress-text {
+            margin-left: 5px;
+            color: white;
+            position: absolute;
+            right: 5px;
+        }
+
+        .progress-bar:hover::before {
+            content: 'ID: ' attr(exp_id) ', Loss:' attr(loss) ', Accuracy: ' attr(acc);
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px;
+            border-radius: 4px;
+            z-index: 1;
+            white-space: nowrap;
+        }
+
+        .input-container {
+            margin-bottom: 15px;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        .grid-search-checkbox {
+            width: 20px;
+            height: 20px;
+            padding: 0px;
+            margin: 5px;
+            vertical-align: middle;
+            position: relative;
+            top: -5px;
+        }
+
+
+    </style>
+    <title>Experiment Management System</title>
+</head>
+<body>
+<div class="container">
+    <h1>Experiment Management System</h1>
+
+    <!-- Input for learning rate, batch size, and epoch -->
+    <div class="input-container">
+        <label for="learningRate">Learning Rate:</label>
+        <input type="text" id="learningRate" placeholder="Enter learning rate">
+        <!-- Grid Search Checkbox for Learning Rate -->
+        <div class="checkbox-container">
+            <label for="gridSearchLearningRate">Grid Search</label>
+            <input type="checkbox" id="gridSearchLearningRate" class="grid-search-checkbox" onchange="disableInput('learningRate')">
+        </div>
+    </div>
+    
+    <div class="input-container">
+        <label for="batchSize">Batch Size:</label>
+        <input type="text" id="batchSize" placeholder="Enter batch size">
+        <!-- Grid Search Checkbox for Batch Size -->
+        <div class="checkbox-container">
+            <label for="gridSearchBatchSize">Grid Search</label>
+            <input type="checkbox" id="gridSearchBatchSize" class="grid-search-checkbox" onchange="disableInput('batchSize')">
+        </div>
+    </div>
+    
+    <div class="input-container">
+        <label for="epoch">Epoch:</label>
+        <input type="text" id="epoch" placeholder="Enter epoch">
+        <!-- Grid Search Checkbox for Epoch -->
+        <div class="checkbox-container">
+            <label for="gridSearchEpoch">Grid Search</label>
+            <input type="checkbox" id="gridSearchEpoch" class="grid-search-checkbox" onchange="disableInput('epoch')">
+        </div>
+    </div>
+    
+    <!-- Start Experiment Button -->
+    <button onclick="startExperiment()">Start Experiment</button>
+    
+    <!-- Display experiment progress -->
+    <div id="progressContainer" class="progress-bar-container">
+        
+    </div>
+    <div style="margin-top:10px; margin-bottom:50px;">
+        <button onclick="showTab('running')">Running</button>
+        <button onclick="showTab('finished')">Finished</button>
+
+        <!-- Dropdown to choose sorting criterion -->
+        <h2 style="margin-top:30px;">Experiment Progress</h2>
+        <label for="sortCriterion" style="margin-top:10px;">Sort By:</label>
+        <select id="sortCriterion" onchange="updateProgressBar()">
+            <option value="accuracy">Accuracy</option>
+            <option value="loss">Loss</option>
+            <option value="time">Time Added</option>
+        </select>
+    </div>
+
+    
+    <!-- Display experiment progress -->
+    <div id="runningContainer" class="progress-bar-container">
+    </div>
+
+    <div id="finishedContainer" class="progress-bar-container">
+    </div>
+
+    
+</div>
+
+<ul id='messages'></ul>
+<script>
+    function updateProgressBar() {
+        fetch('/progress')
+            .then(response => response.json())
+            .then(data => {
+                progresses = data.progress;
+                ids = data.exp_id;
+                accuracies = data.val_acc; // Add accuracy information
+                losses = data.val_loss; // Add loss information
+
+                const runningContainer = document.getElementById('runningContainer');
+                const finishedContainer = document.getElementById('finishedContainer');
+                const sortCriterion = document.getElementById('sortCriterion').value;
+
+                // Clear existing content
+                runningContainer.innerHTML = '';
+                finishedContainer.innerHTML = '';
+
+                for (let i in progresses) {
+                    const divProgress = document.createElement('div');
+                    divProgress.className = 'progress-bar';
+                    divProgress.setAttribute('exp_id', ids[i]);
+                    divProgress.setAttribute('loss', losses[i].toFixed(2));
+                    divProgress.setAttribute('acc', accuracies[i].toFixed(2));
+                    divProgress.setAttribute('time', ids[i])
+                    divProgress.innerHTML = `
+                        <div class="progress-text">${Math.round(progresses[i] * 100)}%</div>
+                    `;
+                    divProgress.style.width = (progresses[i] * 100) + '%';
+
+                    // Add onclick event to the progress bar
+                    divProgress.onclick = function() {
+                        handleProgressBarClick(ids[i]);
+                    };
+
+                    if (progresses[i] < 1) {
+                        // Experiment is still running
+                        runningContainer.appendChild(divProgress);
+                    } else {
+                        // Experiment has finished, add to the finished tab
+                        finishedContainer.appendChild(divProgress);
+                    }
+                }
+
+                // Sort finished experiments based on the selected criterion
+                const finishedExperiments = Array.from(finishedContainer.children);
+                finishedExperiments.sort((a, b) => {
+                    let valueA, valueB;
+                    if (sortCriterion === 'accuracy') {
+                        valueA = -a.getAttribute('acc');
+                        valueB = -b.getAttribute('acc');
+                    } else if (sortCriterion === 'loss') {
+                        valueA = a.getAttribute('loss');
+                        valueB = b.getAttribute('loss');
+                    } else if (sortCriterion === 'time') {
+                        valueA = -a.getAttribute('time');
+                        valueB = -b.getAttribute('time');
+                    }
+                    return valueA - valueB;
+                });
+
+                // Append the sorted experiments back to the finished tab
+                finishedExperiments.forEach(experiment => {
+                    finishedContainer.appendChild(experiment);
+                });
+            })
+            .catch(error => console.error('Error fetching progress:', error));
+    }
+    // Update progress bar every 2 seconds (adjust the interval as needed)
+    setInterval(updateProgressBar, 1000);
+
+    function showTab(tabName) {
+        const runningContainer = document.getElementById('runningContainer');
+        const finishedContainer = document.getElementById('finishedContainer');
+
+        if (tabName === 'running') {
+            runningContainer.style.display = 'block';
+            finishedContainer.style.display = 'none';
+        } else if (tabName === 'finished') {
+            runningContainer.style.display = 'none';
+            finishedContainer.style.display = 'block';
+        }
+    }
+
+    // Set the default tab to display
+    showTab('running');
+
+    function startExperiment() {
+        // Retrieve values from input fields
+        const learningRate = +document.getElementById("learningRate").value;
+        const batchSize = +document.getElementById("batchSize").value;
+        const epoch = +document.getElementById("epoch").value;
+        
+        const gslearningRate = document.getElementById("learningRate").disabled
+        const gsbatchSize = document.getElementById("batchSize").disabled
+        const gsepoch = document.getElementById("epoch").disabled
+        
+        
+        // Validate input values (add your validation logic)
+        if ((!learningRate && !gslearningRate) || (!batchSize && !gsbatchSize) || (!epoch && !gsepoch)) {
+            alert("Please enter valid values for learning rate, batch size, and epoch.");
+            return;
+        }
+
+        console.log(gslearningRate)
+        console.log(learningRate);
+        console.log(JSON.stringify({
+            learningRate,
+            batchSize,
+            epoch,
+        }));
+        // Add logic to send a request to start the experiment with input values
+        // For example, you can use fetch or another method to communicate with the server.
+        // In this example, we assume a hypothetical endpoint "/start_experiment".
+        fetch("/start_experiment", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                learningRate,
+                batchSize,
+                epoch,
+            }),
+        })
+            .then(response => response.json())
+            .then(data => {
+            })
+            .catch(error => {
+                console.error("Error starting experiment:", error);
+            });
+    }
+
+    function disableInput(inputElement) {
+        // Disable the input field
+        const disableElement = document.getElementById(inputElement);
+        disableElement.disabled = !disableElement.disabled;
+    }
+
+    function handleProgressBarClick(exp_id) {
+        // Redirect to the model access page with the experiment ID
+        window.location.href = '/model_access?exp_id=' + exp_id;
+    }
+</script>
+</body>
+</html>
